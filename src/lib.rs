@@ -1,8 +1,55 @@
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
+mod error;
+mod pool;
+mod tx;
+
+use crate::pool::{Event, Pool};
+use crate::tx::{Transaction, TransactionType};
+
+pub type Result<T> = std::result::Result<T, error::KrctError>;
+
+pub struct Krct {
+    pool: Pool,
+}
+
+impl Krct {
+    pub fn read(input_file_path: std::path::PathBuf) -> Result<Self> {
+        let mut input_file = Self::load_input_file(input_file_path)?;
+        let mut pool = Pool::default();
+
+        for tx in Self::deserialize::<Transaction>(&mut input_file) {
+            pool.handle(tx.into())?
+        }
+
+        Ok(Krct { pool })
+    }
+
+    pub fn dump(self) -> Result<()> {
+        let mut writer = csv::Writer::from_writer(std::io::stdout());
+        for client in self.pool.iter() {
+            writer.serialize(client)?;
+            writer.flush()?;
+        }
+
+        Ok(())
+    }
+
+    fn deserialize<'a, T>(file: &'a mut csv::Reader<std::fs::File>) -> impl Iterator<Item = T> + 'a
+    where
+        T: for<'de> serde::Deserialize<'de> + 'a,
+    {
+        file.deserialize::<T>().filter_map(std::result::Result::ok)
+    }
+
+    fn load_input_file<P>(input_file_path: P) -> csv::Result<csv::Reader<std::fs::File>>
+    where
+        P: AsRef<std::path::Path>,
+    {
+        let mut input_file = csv::ReaderBuilder::new()
+            .trim(csv::Trim::All)
+            .from_path(input_file_path)?;
+        let trimmed_headers = input_file.headers()?.iter().map(str::trim).collect();
+        input_file.set_headers(trimmed_headers);
+
+        Ok(input_file)
     }
 }
