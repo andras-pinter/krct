@@ -41,9 +41,7 @@ impl Client {
                     self.available += amount;
                     self.total += amount;
                 }
-                Event::Withdrawal { amount, .. }
-                    if !self.locked && self.available.0 > amount as f64 =>
-                {
+                Event::Withdrawal { amount, .. } if !self.locked && self.available > amount => {
                     self.available -= amount;
                     self.total -= amount;
                 }

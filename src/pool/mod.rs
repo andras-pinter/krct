@@ -35,7 +35,7 @@ impl Pool {
             Event::Dispute { client, .. } => self.get_or_insert(client),
             Event::Resolve { client, .. } => self.get_or_insert(client),
             Event::Chargeback { client, .. } => self.get_or_insert(client),
-            _ => unreachable!("Event: {:?} should not be handled!", event),
+            e => return Err(KrctError::UnkUnknownEvent(e)),
         };
 
         client.0.send(event).map_err(KrctError::Handler)

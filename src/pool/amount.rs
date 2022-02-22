@@ -1,5 +1,4 @@
 #[derive(Debug, serde::Serialize)]
-#[cfg_attr(test, derive(PartialEq))]
 pub(in crate::pool) struct Amount<T>(pub T);
 
 impl std::ops::AddAssign<f32> for Amount<f64> {
@@ -28,6 +27,28 @@ impl std::ops::SubAssign<&Amount<f32>> for Amount<f64> {
     }
 }
 
+impl PartialOrd<f32> for Amount<f64> {
+    fn partial_cmp(&self, other: &f32) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(&(*other as f64))
+    }
+}
+
+impl PartialEq<f32> for Amount<f64> {
+    fn eq(&self, other: &f32) -> bool {
+        self.0 == (*other) as f64
+    }
+}
+
+#[cfg(test)]
+impl<T> PartialEq<Amount<T>> for Amount<T>
+where
+    T: PartialEq,
+{
+    fn eq(&self, other: &Amount<T>) -> bool {
+        self.0 == other.0
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::Amount;
@@ -51,5 +72,23 @@ mod tests {
         let mut amount = Amount(1.5);
         amount -= 2.0;
         assert_eq!(amount.0, 1.5);
+    }
+
+    #[test]
+    fn test_lesser() {
+        let amount = Amount(1.5);
+        assert!(amount < 2.0);
+    }
+
+    #[test]
+    fn test_greater() {
+        let amount = Amount(1.5);
+        assert!(amount > 1.0);
+    }
+
+    #[test]
+    fn test_equals() {
+        let amount = Amount(1.5);
+        assert_eq!(amount, 1.5);
     }
 }

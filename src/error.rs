@@ -6,4 +6,6 @@ pub enum KrctError {
     CsvDump(#[from] std::io::Error),
     #[error("Error handling even: {0}")]
     Handler(#[from] std::sync::mpsc::SendError<crate::Event>),
+    #[error("Unknown even: {0:?}")]
+    UnkUnknownEvent(super::Event),
 }
