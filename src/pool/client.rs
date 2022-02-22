@@ -41,7 +41,7 @@ impl Client {
                     self.available += amount;
                     self.total += amount;
                 }
-                Event::Withdrawal { amount, .. } if !self.locked && self.available > amount => {
+                Event::Withdrawal { amount, .. } if !self.locked && self.available >= amount => {
                     self.available -= amount;
                     self.total -= amount;
                 }
