@@ -37,13 +37,13 @@ pub(crate) struct Transaction {
 mod common {
     use std::io::Write;
 
-    pub fn create_test_file(content: &'static str) -> tempfile::NamedTempFile {
-        let mut test_file = tempfile::NamedTempFile::new().expect("Failed to create testfile");
+    pub fn create_test_file(content: &'static str) -> std::fs::File {
+        let mut test_file =
+            tempfile::NamedTempFile::new().expect("Failed to create temporary file!");
         test_file
             .write_all(content.as_bytes())
-            .expect("Failed to write testfile");
-
-        test_file
+            .expect("Failed to write temporary file!");
+        test_file.reopen().expect("Failed to open temporary file!")
     }
 }
 
@@ -61,9 +61,7 @@ mod positive_test_cases {
         deposit,1,1,1.0\
         ",
         );
-        let reader = Krct::load_input_file(test_case.path());
-        assert!(reader.is_ok(), "{}", reader.unwrap_err());
-        let mut reader = reader.unwrap();
+        let mut reader = Krct::get_reader(test_case);
         let mut tx = reader.deserialize::<Transaction>();
 
         let record = tx.next();
@@ -85,9 +83,7 @@ mod positive_test_cases {
         withdrawal,1,1,1.0\
         ",
         );
-        let reader = Krct::load_input_file(test_case.path());
-        assert!(reader.is_ok(), "{}", reader.unwrap_err());
-        let mut reader = reader.unwrap();
+        let mut reader = Krct::get_reader(test_case);
         let mut tx = reader.deserialize::<Transaction>();
 
         let record = tx.next();
@@ -109,9 +105,7 @@ mod positive_test_cases {
         dispute,1,1,\
         ",
         );
-        let reader = Krct::load_input_file(test_case.path());
-        assert!(reader.is_ok(), "{}", reader.unwrap_err());
-        let mut reader = reader.unwrap();
+        let mut reader = Krct::get_reader(test_case);
         let mut tx = reader.deserialize::<Transaction>();
 
         let record = tx.next();
@@ -133,9 +127,7 @@ mod positive_test_cases {
         resolve,1,1,\
         ",
         );
-        let reader = Krct::load_input_file(test_case.path());
-        assert!(reader.is_ok(), "{}", reader.unwrap_err());
-        let mut reader = reader.unwrap();
+        let mut reader = Krct::get_reader(test_case);
         let mut tx = reader.deserialize::<Transaction>();
 
         let record = tx.next();
@@ -157,9 +149,7 @@ mod positive_test_cases {
         chargeback,1,1,\
         ",
         );
-        let reader = Krct::load_input_file(test_case.path());
-        assert!(reader.is_ok(), "{}", reader.unwrap_err());
-        let mut reader = reader.unwrap();
+        let mut reader = Krct::get_reader(test_case);
         let mut tx = reader.deserialize::<Transaction>();
 
         let record = tx.next();
@@ -181,9 +171,7 @@ mod positive_test_cases {
         deposit,    1,      1,  1.0\
         ",
         );
-        let reader = Krct::load_input_file(test_case.path());
-        assert!(reader.is_ok(), "{}", reader.unwrap_err());
-        let mut reader = reader.unwrap();
+        let mut reader = Krct::get_reader(test_case);
         let mut tx = reader.deserialize::<Transaction>();
 
         let record = tx.next();
@@ -212,9 +200,7 @@ mod negative_test_cases {
         unknownType,1,1,1.0\
         ",
         );
-        let reader = Krct::load_input_file(test_case.path());
-        assert!(reader.is_ok(), "{}", reader.unwrap_err());
-        let mut reader = reader.unwrap();
+        let mut reader = Krct::get_reader(test_case);
         let mut tx = reader.deserialize::<Transaction>();
 
         let record = tx.next();
@@ -233,9 +219,7 @@ mod negative_test_cases {
         deposit,a,1,1.0\
         ",
         );
-        let reader = Krct::load_input_file(test_case.path());
-        assert!(reader.is_ok(), "{}", reader.unwrap_err());
-        let mut reader = reader.unwrap();
+        let mut reader = Krct::get_reader(test_case);
         let mut tx = reader.deserialize::<Transaction>();
 
         let record = tx.next();
@@ -252,9 +236,7 @@ mod negative_test_cases {
         deposit,1,a,1.0\
         ",
         );
-        let reader = Krct::load_input_file(test_case.path());
-        assert!(reader.is_ok(), "{}", reader.unwrap_err());
-        let mut reader = reader.unwrap();
+        let mut reader = Krct::get_reader(test_case);
         let mut tx = reader.deserialize::<Transaction>();
 
         let record = tx.next();
@@ -271,9 +253,7 @@ mod negative_test_cases {
         deposit,1,1,a\
         ",
         );
-        let reader = Krct::load_input_file(test_case.path());
-        assert!(reader.is_ok(), "{}", reader.unwrap_err());
-        let mut reader = reader.unwrap();
+        let mut reader = Krct::get_reader(test_case);
         let mut tx = reader.deserialize::<Transaction>();
 
         let record = tx.next();
@@ -290,9 +270,7 @@ mod negative_test_cases {
         deposit,1\
         ",
         );
-        let reader = Krct::load_input_file(test_case.path());
-        assert!(reader.is_ok(), "{}", reader.unwrap_err());
-        let mut reader = reader.unwrap();
+        let mut reader = Krct::get_reader(test_case);
         let mut tx = reader.deserialize::<Transaction>();
 
         let record = tx.next();
@@ -309,9 +287,7 @@ mod negative_test_cases {
         deposit\
         ",
         );
-        let reader = Krct::load_input_file(test_case.path());
-        assert!(reader.is_ok(), "{}", reader.unwrap_err());
-        let mut reader = reader.unwrap();
+        let mut reader = Krct::get_reader(test_case);
         let mut tx = reader.deserialize::<Transaction>();
 
         let record = tx.next();

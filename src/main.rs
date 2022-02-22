@@ -15,7 +15,7 @@ struct Args {
 /// ```
 #[paw::main]
 fn main(args: Args) {
-    match Krct::read(args.input) {
+    match Krct::try_from(args.input) {
         Ok(krct) => {
             if let Err(err) = krct.dump(std::io::stdout()) {
                 eprint!("{}", err)

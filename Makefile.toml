@@ -23,6 +23,10 @@ args = ["test", "--lib"]
 command = "cargo"
 args = ["test", "--test", "krct"]
 
+[tasks.bench]
+command = "cargo"
+args = ["bench"]
+
 [tasks.lint]
 command = "cargo"
 args = ["clippy"]

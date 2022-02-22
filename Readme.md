@@ -37,6 +37,26 @@ My presumption was when a client account is locked, then no more transaction is 
 My presumption was to create an application which as error-prone as possible. Instead of logging or returning an error,
 simply ignore it. For example, if an unknown transaction type arrives, rather ignore it, than stopping the application
 with an error.
+## Benchmark
+Krct comes with a built-in benchmarking tool, which runs a 10 million (10_000_000) randomly generated transaction asset
+with 10 samples. This benchmark will not generate any file on your system. The input asset file is randomly generated
+on-the-fly (as the engine reads line-by-line) and the output is redirected into a simple sink.
+> **Caution:** This measurement could take some time! Run manually only!
+
+Run the benchmark with cargo-make
+```shell
+makers bench
+```
+Run the benchmark with cargo
+```shell
+cargo bench
+```
+### Hot to interpret the result
+```shell
+Bench with 10000000 lines
+    time:   [12.950 s 13.038 s 13.169 s]
+```
+As seen above, to process one iteration with a 10_000_000 transaction asset took ~13 seconds.
 # Development
 ## Run all tests, checks
 Run all checks, tests, like a CI Workflow. Benchmark is not included!

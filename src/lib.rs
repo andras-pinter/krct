@@ -11,15 +11,31 @@ pub struct Krct {
     pool: Pool,
 }
 
+impl TryFrom<std::path::PathBuf> for Krct {
+    type Error = error::KrctError;
+
+    fn try_from(input_file_path: std::path::PathBuf) -> std::result::Result<Self, Self::Error> {
+        let input_file = std::fs::File::open(input_file_path)?;
+        Self::read(input_file)
+    }
+}
+
+impl TryFrom<&std::path::Path> for Krct {
+    type Error = error::KrctError;
+
+    fn try_from(value: &std::path::Path) -> std::result::Result<Self, Self::Error> {
+        Krct::try_from(value.to_path_buf())
+    }
+}
+
 impl Krct {
-    /// Reads the file path pointing to the input CSV file and reads it line by line. Each line
-    /// is a well defined event belongs to a client. Each event processed by the corresponding
-    /// client thread.
-    pub fn read<P: AsRef<std::path::Path>>(input_file_path: P) -> Result<Self> {
-        let mut input_file = Self::load_input_file(input_file_path)?;
+    /// Reads the given input CSV steam and reads it line by line. Each line is a well defined
+    /// event belongs to a client. Each event processed by the corresponding client thread.
+    pub fn read<R: std::io::Read>(reader: R) -> Result<Self> {
+        let mut reader = Self::get_reader(reader);
         let mut pool = Pool::default();
 
-        for tx in Self::deserialize::<Transaction>(&mut input_file) {
+        for tx in Self::deserialize::<Transaction, R>(&mut reader) {
             pool.handle(tx.into())?
         }
 
@@ -48,23 +64,19 @@ impl Krct {
         Ok(())
     }
 
-    fn deserialize<'a, T>(file: &'a mut csv::Reader<std::fs::File>) -> impl Iterator<Item = T> + 'a
+    fn deserialize<'a, T, R>(reader: &'a mut csv::Reader<R>) -> impl Iterator<Item = T> + 'a
     where
         T: for<'de> serde::Deserialize<'de> + 'a,
+        R: std::io::Read,
     {
-        file.deserialize::<T>().filter_map(std::result::Result::ok)
+        reader
+            .deserialize::<T>()
+            .filter_map(std::result::Result::ok)
     }
 
-    fn load_input_file<P>(input_file_path: P) -> csv::Result<csv::Reader<std::fs::File>>
-    where
-        P: AsRef<std::path::Path>,
-    {
-        let mut input_file = csv::ReaderBuilder::new()
+    fn get_reader<R: std::io::Read>(reader: R) -> csv::Reader<R> {
+        csv::ReaderBuilder::new()
             .trim(csv::Trim::All)
-            .from_path(input_file_path)?;
-        let trimmed_headers = input_file.headers()?.iter().map(str::trim).collect();
-        input_file.set_headers(trimmed_headers);
-
-        Ok(input_file)
+            .from_reader(reader)
     }
 }
