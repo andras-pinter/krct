@@ -17,6 +17,8 @@ pub enum Event {
 
     /// Special event, which indicates there will be no more data and the result set cloud be dumped
     Finish,
+    /// Special event, which indicates the transaction type is not known by us
+    Unknown,
 }
 
 impl From<Transaction> for Event {
@@ -44,6 +46,7 @@ impl From<Transaction> for Event {
                 client: tx.client_id,
                 tx: tx.transaction_id,
             },
+            _ => Event::Unknown,
         }
     }
 }

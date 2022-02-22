@@ -13,6 +13,9 @@ pub(crate) enum TransactionType {
     Dispute,
     Resolve,
     Chargeback,
+
+    #[serde(other)]
+    Unknown,
 }
 
 /// Each line of teh input CSV file is a well-defined event, described by the `Transaction` struct.
@@ -199,7 +202,7 @@ mod positive_test_cases {
 mod negative_test_cases {
     use super::common::create_test_file;
     use super::Transaction;
-    use crate::Krct;
+    use crate::{Krct, TransactionType};
 
     #[test]
     fn test_unknown_transaction_type() {
@@ -217,7 +220,9 @@ mod negative_test_cases {
         let record = tx.next();
         assert!(record.is_some());
         let record = record.unwrap();
-        assert!(record.is_err());
+        assert!(record.is_ok(), "{}", record.unwrap_err());
+        let record = record.unwrap();
+        assert_eq!(record._type, TransactionType::Unknown);
     }
 
     #[test]

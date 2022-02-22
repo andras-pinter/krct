@@ -418,3 +418,39 @@ fn test_chargeback_event_ignored_upon_non_disputed_transaction_id() {
         }],
     );
 }
+
+#[test]
+fn test_unknown_event_is_ignored() {
+    let mut pool = Pool::default();
+    send(
+        &mut pool,
+        Event::Deposit {
+            client: 1,
+            tx: 1,
+            amount: 1.0,
+        },
+    );
+    send(&mut pool, Event::Unknown);
+    send(
+        &mut pool,
+        Event::Deposit {
+            client: 1,
+            tx: 3,
+            amount: 1.0,
+        },
+    );
+    assert_clients(
+        pool,
+        vec![ClientAssertion {
+            id: 1,
+            available: 2.0,
+            held: 0.0,
+            total: 2.0,
+            locked: false,
+            transaction_history: History::from([
+                (1, 1.0, State::Recorded),
+                (3, 1.0, State::Recorded),
+            ]),
+        }],
+    );
+}

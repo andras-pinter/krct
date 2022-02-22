@@ -41,7 +41,7 @@ impl Pool {
             Event::Dispute { client, .. } => self.get_or_insert(client),
             Event::Resolve { client, .. } => self.get_or_insert(client),
             Event::Chargeback { client, .. } => self.get_or_insert(client),
-            e => return Err(KrctError::UnkUnknownEvent(e)),
+            _ => return Ok(()),
         };
 
         client.0.send(event).map_err(KrctError::Handler)
