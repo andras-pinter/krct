@@ -1,0 +1,36 @@
+[tasks.all]
+dependencies = [
+    "check",
+    "unit",
+    "e2e",
+    "lint",
+    "check-format",
+]
+
+[tasks.check]
+command = "cargo"
+args = ["check"]
+
+[tasks.test]
+command = "cargo"
+args = ["test"]
+
+[tasks.unit]
+command = "cargo"
+args = ["test", "--lib"]
+
+[tasks.e2e]
+command = "cargo"
+args = ["test", "--test", "krct"]
+
+[tasks.lint]
+command = "cargo"
+args = ["clippy"]
+
+[tasks.check-format]
+command = "cargo"
+args = ["fmt", "--", "--check"]
+
+[tasks.format]
+command = "cargo"
+args = ["fmt", "--", "--emit", "files"]
