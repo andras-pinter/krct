@@ -11,7 +11,7 @@ struct Args {
 fn main(args: Args) {
     match Krct::read(args.input) {
         Ok(krct) => {
-            if let Err(err) = krct.dump() {
+            if let Err(err) = krct.dump(std::io::stdout()) {
                 eprint!("{}", err)
             }
         }

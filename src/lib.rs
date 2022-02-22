@@ -12,7 +12,7 @@ pub struct Krct {
 }
 
 impl Krct {
-    pub fn read(input_file_path: std::path::PathBuf) -> Result<Self> {
+    pub fn read<P: AsRef<std::path::Path>>(input_file_path: P) -> Result<Self> {
         let mut input_file = Self::load_input_file(input_file_path)?;
         let mut pool = Pool::default();
 
@@ -23,9 +23,19 @@ impl Krct {
         Ok(Krct { pool })
     }
 
-    pub fn dump(self) -> Result<()> {
-        let mut writer = csv::Writer::from_writer(std::io::stdout());
+    pub fn dump<W: std::io::Write>(self, writer: W) -> Result<()> {
+        let mut writer = csv::Writer::from_writer(writer);
         for client in self.pool.iter() {
+            writer.serialize(client)?;
+            writer.flush()?;
+        }
+
+        Ok(())
+    }
+
+    pub fn dump_sorted<W: std::io::Write>(self, writer: W) -> Result<()> {
+        let mut writer = csv::Writer::from_writer(writer);
+        for client in self.pool.sorted() {
             writer.serialize(client)?;
             writer.flush()?;
         }

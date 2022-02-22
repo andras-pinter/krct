@@ -1,5 +1,7 @@
+mod amount;
 mod client;
 mod event;
+mod history;
 mod iter;
 #[cfg(test)]
 mod test;
@@ -46,5 +48,10 @@ impl Pool {
 
             (tx, std::thread::spawn(move || client.start_handling()))
         })
+    }
+
+    #[cfg(test)]
+    pub fn len(&self) -> usize {
+        self.clients.len()
     }
 }

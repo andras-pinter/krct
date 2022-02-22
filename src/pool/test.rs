@@ -1,10 +1,51 @@
+use super::amount::Amount;
+use super::client::Client;
+use super::history::{History, State};
 use super::Pool;
-use crate::pool::client::Amount;
 use crate::Event;
 use std::collections::HashMap;
 
+struct ClientAssertion {
+    id: u16,
+    transaction_history: History<u32, f32>,
+    available: f64,
+    held: f64,
+    total: f64,
+    locked: bool,
+}
+
 fn send(pool: &mut Pool, event: Event) {
     assert!(pool.handle(event).is_ok())
+}
+
+fn assert_clients(pool: Pool, expected: Vec<ClientAssertion>) {
+    assert_eq!(
+        pool.len(),
+        expected.len(),
+        "Pool length and Assertion asset length should be equal"
+    );
+    let result_set = pool
+        .iter()
+        .map(|client| (client.id, client))
+        .collect::<HashMap<u16, Client>>();
+
+    for expected_client in expected {
+        let client = result_set.get(&expected_client.id);
+        assert!(
+            client.is_some(),
+            "Client should be found with id: {}",
+            expected_client.id
+        );
+        let client = client.unwrap();
+        assert_eq!(
+            client.transaction_history,
+            expected_client.transaction_history
+        );
+        assert_eq!(client.available, Amount::from(expected_client.available));
+        assert_eq!(client.held, Amount::from(expected_client.held));
+        assert_eq!(client.total, Amount::from(expected_client.total));
+        assert_eq!(client.locked, expected_client.locked);
+    }
 }
 
 #[test]
@@ -34,33 +75,30 @@ fn test_deposit_flow() {
             amount: 1.0,
         },
     );
-    let mut result = HashMap::new();
-    for c in pool.iter() {
-        result.insert(c.id, c);
-    }
-
-    let client_1 = result.get(&1);
-    assert!(client_1.is_some());
-    let client_1 = client_1.unwrap();
-    let mut expected_history = HashMap::new();
-    expected_history.insert(1, Amount::from(1.0));
-    expected_history.insert(2, Amount::from(2.0));
-    assert_eq!(client_1.transaction_history, expected_history);
-    assert_eq!(client_1.available, Amount::from(3.0));
-    assert_eq!(client_1.held, Amount::from(0.0));
-    assert_eq!(client_1.total, Amount::from(3.0));
-    assert_eq!(client_1.locked, false);
-
-    let client_2 = result.get(&2);
-    assert!(client_2.is_some());
-    let client_2 = client_2.unwrap();
-    let mut expected_history = HashMap::new();
-    expected_history.insert(3, Amount::from(1.0));
-    assert_eq!(client_2.transaction_history, expected_history);
-    assert_eq!(client_2.available, Amount::from(1.0));
-    assert_eq!(client_2.held, Amount::from(0.0));
-    assert_eq!(client_2.total, Amount::from(1.0));
-    assert_eq!(client_2.locked, false);
+    assert_clients(
+        pool,
+        vec![
+            ClientAssertion {
+                id: 1,
+                available: 3.0,
+                held: 0.0,
+                total: 3.0,
+                locked: false,
+                transaction_history: History::from([
+                    (1, 1.0, State::Recorded),
+                    (2, 2.0, State::Recorded),
+                ]),
+            },
+            ClientAssertion {
+                id: 2,
+                available: 1.0,
+                held: 0.0,
+                total: 1.0,
+                locked: false,
+                transaction_history: History::from([(3, 1.0, State::Recorded)]),
+            },
+        ],
+    );
 }
 
 #[test]
@@ -90,29 +128,293 @@ fn test_withdrawal_flow() {
             amount: 1.0,
         },
     );
-    let mut result = HashMap::new();
-    for c in pool.iter() {
-        result.insert(c.id, c);
-    }
+    assert_clients(
+        pool,
+        vec![
+            ClientAssertion {
+                id: 1,
+                available: 1.0,
+                held: 0.0,
+                total: 1.0,
+                locked: false,
+                transaction_history: History::from([(1, 2.0, State::Recorded)]),
+            },
+            ClientAssertion {
+                id: 2,
+                available: 0.0,
+                held: 0.0,
+                total: 0.0,
+                locked: false,
+                transaction_history: History::default(),
+            },
+        ],
+    );
+}
 
-    let client_1 = result.get(&1);
-    assert!(client_1.is_some());
-    let client_1 = client_1.unwrap();
-    let mut expected_history = HashMap::new();
-    expected_history.insert(1, Amount::from(2.0));
-    assert_eq!(client_1.transaction_history, expected_history);
-    assert_eq!(client_1.available, Amount::from(1.0));
-    assert_eq!(client_1.held, Amount::from(0.0));
-    assert_eq!(client_1.total, Amount::from(1.0));
-    assert_eq!(client_1.locked, false);
+#[test]
+fn test_dispute_flow() {
+    let mut pool = Pool::default();
+    send(
+        &mut pool,
+        Event::Deposit {
+            client: 1,
+            tx: 1,
+            amount: 2.0,
+        },
+    );
+    send(
+        &mut pool,
+        Event::Deposit {
+            client: 1,
+            tx: 2,
+            amount: 1.0,
+        },
+    );
+    send(&mut pool, Event::Dispute { client: 1, tx: 2 });
+    assert_clients(
+        pool,
+        vec![ClientAssertion {
+            id: 1,
+            available: 2.0,
+            held: 1.0,
+            total: 3.0,
+            locked: false,
+            transaction_history: History::from([(1, 2.0, State::Recorded), (2, 1.0, State::Held)]),
+        }],
+    );
+}
 
-    let client_2 = result.get(&2);
-    assert!(client_2.is_some());
-    let client_2 = client_2.unwrap();
-    let expected_history = HashMap::new();
-    assert_eq!(client_2.transaction_history, expected_history);
-    assert_eq!(client_2.available, Amount::from(0.0));
-    assert_eq!(client_2.held, Amount::from(0.0));
-    assert_eq!(client_2.total, Amount::from(0.0));
-    assert_eq!(client_2.locked, false);
+#[test]
+fn test_resolve_flow() {
+    let mut pool = Pool::default();
+    send(
+        &mut pool,
+        Event::Deposit {
+            client: 1,
+            tx: 1,
+            amount: 2.0,
+        },
+    );
+    send(
+        &mut pool,
+        Event::Deposit {
+            client: 1,
+            tx: 2,
+            amount: 1.0,
+        },
+    );
+    send(&mut pool, Event::Dispute { client: 1, tx: 2 });
+    send(&mut pool, Event::Resolve { client: 1, tx: 2 });
+    assert_clients(
+        pool,
+        vec![ClientAssertion {
+            id: 1,
+            available: 3.0,
+            held: 0.0,
+            total: 3.0,
+            locked: false,
+            transaction_history: History::from([
+                (1, 2.0, State::Recorded),
+                (2, 1.0, State::Recorded),
+            ]),
+        }],
+    );
+}
+
+#[test]
+fn test_chargeback_flow() {
+    let mut pool = Pool::default();
+    send(
+        &mut pool,
+        Event::Deposit {
+            client: 1,
+            tx: 1,
+            amount: 2.0,
+        },
+    );
+    send(
+        &mut pool,
+        Event::Deposit {
+            client: 1,
+            tx: 2,
+            amount: 1.0,
+        },
+    );
+    send(&mut pool, Event::Dispute { client: 1, tx: 2 });
+    send(&mut pool, Event::Chargeback { client: 1, tx: 2 });
+    assert_clients(
+        pool,
+        vec![ClientAssertion {
+            id: 1,
+            available: 2.0,
+            held: 0.0,
+            total: 2.0,
+            locked: true,
+            transaction_history: History::from([
+                (1, 2.0, State::Recorded),
+                (2, 1.0, State::ChargedBack),
+            ]),
+        }],
+    );
+}
+
+#[test]
+fn test_deposit_after_chargeback() {
+    let mut pool = Pool::default();
+    send(
+        &mut pool,
+        Event::Deposit {
+            client: 1,
+            tx: 1,
+            amount: 2.0,
+        },
+    );
+    send(&mut pool, Event::Dispute { client: 1, tx: 1 });
+    send(&mut pool, Event::Chargeback { client: 1, tx: 1 });
+    send(
+        &mut pool,
+        Event::Deposit {
+            client: 1,
+            tx: 2,
+            amount: 1.0,
+        },
+    );
+    assert_clients(
+        pool,
+        vec![ClientAssertion {
+            id: 1,
+            available: 0.0,
+            held: 0.0,
+            total: 0.0,
+            locked: true,
+            transaction_history: History::from([(1, 2.0, State::ChargedBack)]),
+        }],
+    );
+}
+
+#[test]
+fn test_dispute_event_ignored_upon_non_existent_transaction_id() {
+    let mut pool = Pool::default();
+    send(
+        &mut pool,
+        Event::Deposit {
+            client: 1,
+            tx: 1,
+            amount: 1.0,
+        },
+    );
+    send(&mut pool, Event::Dispute { client: 1, tx: 2 });
+    assert_clients(
+        pool,
+        vec![ClientAssertion {
+            id: 1,
+            available: 1.0,
+            held: 0.0,
+            total: 1.0,
+            locked: false,
+            transaction_history: History::from([(1, 1.0, State::Recorded)]),
+        }],
+    );
+}
+
+#[test]
+fn test_resolve_event_ignored_upon_non_existent_transaction_id() {
+    let mut pool = Pool::default();
+    send(
+        &mut pool,
+        Event::Deposit {
+            client: 1,
+            tx: 1,
+            amount: 1.0,
+        },
+    );
+    send(&mut pool, Event::Dispute { client: 1, tx: 1 });
+    send(&mut pool, Event::Resolve { client: 1, tx: 2 });
+    assert_clients(
+        pool,
+        vec![ClientAssertion {
+            id: 1,
+            available: 0.0,
+            held: 1.0,
+            total: 1.0,
+            locked: false,
+            transaction_history: History::from([(1, 1.0, State::Held)]),
+        }],
+    );
+}
+
+#[test]
+fn test_resolve_event_ignored_upon_non_disputed_transaction_id() {
+    let mut pool = Pool::default();
+    send(
+        &mut pool,
+        Event::Deposit {
+            client: 1,
+            tx: 1,
+            amount: 1.0,
+        },
+    );
+    send(&mut pool, Event::Resolve { client: 1, tx: 1 });
+    assert_clients(
+        pool,
+        vec![ClientAssertion {
+            id: 1,
+            available: 1.0,
+            held: 0.0,
+            total: 1.0,
+            locked: false,
+            transaction_history: History::from([(1, 1.0, State::Recorded)]),
+        }],
+    );
+}
+
+#[test]
+fn test_chargeback_event_ignored_upon_non_existent_transaction_id() {
+    let mut pool = Pool::default();
+    send(
+        &mut pool,
+        Event::Deposit {
+            client: 1,
+            tx: 1,
+            amount: 1.0,
+        },
+    );
+    send(&mut pool, Event::Dispute { client: 1, tx: 1 });
+    send(&mut pool, Event::Chargeback { client: 1, tx: 2 });
+    assert_clients(
+        pool,
+        vec![ClientAssertion {
+            id: 1,
+            available: 0.0,
+            held: 1.0,
+            total: 1.0,
+            locked: false,
+            transaction_history: History::from([(1, 1.0, State::Held)]),
+        }],
+    );
+}
+
+#[test]
+fn test_chargeback_event_ignored_upon_non_disputed_transaction_id() {
+    let mut pool = Pool::default();
+    send(
+        &mut pool,
+        Event::Deposit {
+            client: 1,
+            tx: 1,
+            amount: 1.0,
+        },
+    );
+    send(&mut pool, Event::Chargeback { client: 1, tx: 1 });
+    assert_clients(
+        pool,
+        vec![ClientAssertion {
+            id: 1,
+            available: 1.0,
+            held: 0.0,
+            total: 1.0,
+            locked: false,
+            transaction_history: History::from([(1, 1.0, State::Recorded)]),
+        }],
+    );
 }

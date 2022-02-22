@@ -9,6 +9,13 @@ impl Pool {
                 .unwrap_or_else(|err| panic!("Could not join {} worker: {:?}", id, err))
         })
     }
+
+    pub fn sorted(self) -> impl std::iter::Iterator<Item = Client> {
+        let mut clients = self.iter().collect::<Vec<Client>>();
+        clients.sort_by(|first, second| first.id.cmp(&second.id));
+
+        clients.into_iter()
+    }
 }
 
 #[cfg(test)]
