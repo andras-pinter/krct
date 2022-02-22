@@ -1,3 +1,4 @@
+/// Utility to ease handling amount values in events
 #[derive(Debug, serde::Serialize)]
 pub(in crate::pool) struct Amount<T>(pub T);
 

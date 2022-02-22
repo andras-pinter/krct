@@ -12,6 +12,9 @@ pub struct Krct {
 }
 
 impl Krct {
+    /// Reads the file path pointing to the input CSV file and reads it line by line. Each line
+    /// is a well defined event belongs to a client. Each event processed by the corresponding
+    /// client thread.
     pub fn read<P: AsRef<std::path::Path>>(input_file_path: P) -> Result<Self> {
         let mut input_file = Self::load_input_file(input_file_path)?;
         let mut pool = Pool::default();
@@ -23,6 +26,7 @@ impl Krct {
         Ok(Krct { pool })
     }
 
+    /// When all events are finished processing, the result dumped to the given writer.
     pub fn dump<W: std::io::Write>(self, writer: W) -> Result<()> {
         let mut writer = csv::Writer::from_writer(writer);
         for client in self.pool.iter() {
@@ -33,6 +37,7 @@ impl Krct {
         Ok(())
     }
 
+    /// Dumps the result set sorted by the client identifier
     pub fn dump_sorted<W: std::io::Write>(self, writer: W) -> Result<()> {
         let mut writer = csv::Writer::from_writer(writer);
         for client in self.pool.sorted() {

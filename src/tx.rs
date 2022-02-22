@@ -1,3 +1,9 @@
+/// Type of the event, could be:
+/// * deposit
+/// * withdraw
+/// * dispute
+/// * resolve
+/// * chargeback
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 #[cfg_attr(test, derive(PartialEq))]
@@ -9,6 +15,9 @@ pub(crate) enum TransactionType {
     Chargeback,
 }
 
+/// Each line of teh input CSV file is a well-defined event, described by the `Transaction` struct.
+/// All event has a type, described by the `TransactionType` enum. Each event assigned by a client
+/// id and a transaction id. Optionally the amount, not all transaction have an amount.
 #[derive(Debug, serde::Deserialize)]
 pub(crate) struct Transaction {
     #[serde(rename = "type")]

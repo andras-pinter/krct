@@ -13,7 +13,8 @@ use std::collections::HashMap;
 use std::sync::mpsc;
 use std::thread::JoinHandle;
 
-const CLIENT_PREALLOCATE: usize = 10;
+/// Pre-allocating space for N clients
+const CLIENT_PREALLOCATE: usize = 20;
 
 pub struct Pool {
     clients: HashMap<u16, (mpsc::Sender<Event>, JoinHandle<Client>)>,
@@ -28,6 +29,11 @@ impl Default for Pool {
 }
 
 impl Pool {
+    /// The client pool is responsible handling clients and dispatches the events to the
+    /// corresponding client.
+    ///
+    /// # Error
+    /// If an event arrives, which cannot be handled by the client.
     pub fn handle(&mut self, event: Event) -> crate::Result<()> {
         let client = match event {
             Event::Deposit { client, .. } => self.get_or_insert(client),
@@ -41,6 +47,7 @@ impl Pool {
         client.0.send(event).map_err(KrctError::Handler)
     }
 
+    /// Get a client or initialize a new one, if a previously not known Client ID arrives
     fn get_or_insert(&mut self, client_id: u16) -> &mut (mpsc::Sender<Event>, JoinHandle<Client>) {
         self.clients.entry(client_id).or_insert_with(|| {
             let (tx, rx) = mpsc::channel::<Event>();

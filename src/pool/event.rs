@@ -1,14 +1,21 @@
 use crate::{Transaction, TransactionType};
 
+/// Describing the given event and the field associated with the event
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq))]
 pub enum Event {
+    /// Transaction event for an incoming amount
     Deposit { client: u16, tx: u32, amount: f32 },
+    /// Transaction event for an outgoing amount
     Withdrawal { client: u16, tx: u32, amount: f32 },
+    /// Transaction event for a possible erroneous amount
     Dispute { client: u16, tx: u32 },
+    /// Transaction event for an amount previously marked as erroneous is resolved
     Resolve { client: u16, tx: u32 },
+    /// Transaction event for an amount previously marked as erroneous is charged back
     Chargeback { client: u16, tx: u32 },
 
+    /// Special event, which indicates there will be no more data and the result set cloud be dumped
     Finish,
 }
 

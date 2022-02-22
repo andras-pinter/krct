@@ -3,6 +3,7 @@ use super::history::{History, State};
 use crate::pool::Event;
 use std::sync::mpsc;
 
+/// Main business logic, handling events corresponding to the given client.
 #[derive(Debug, serde::Serialize)]
 pub struct Client {
     #[serde(rename = "client")]
@@ -19,6 +20,8 @@ pub struct Client {
 }
 
 impl Client {
+    /// Constructing a new client with the given Client ID and the receiver part of the
+    /// communication channel
     pub fn new(client_id: u16, channel: mpsc::Receiver<Event>) -> Self {
         Self {
             id: client_id,
@@ -32,6 +35,19 @@ impl Client {
         }
     }
 
+    /// Event handling thread, receiving events from the sender via the previously given channel.
+    ///
+    /// # Events
+    /// * Deposit: increase the available and total amount
+    /// * Withdrawal: decreasing the available and total amount
+    /// * Dispute: decreasing the available, but not the talal. Also, increasing the held amount
+    /// * Resolve: a previously disputed transaction resolved and the available amount should be increased
+    /// * Chargeback: a previously disputed transaction should be charged back. The total and the available
+    ///   amount should be decreased and the client has to be locked.
+    ///
+    /// # Finish
+    /// Special event to indicate the processing of the events should be finished and the handling
+    /// thread has to be stopped
     pub fn start_handling(mut self) -> Self {
         while let Ok(event) = self.channel.recv() {
             match event {
